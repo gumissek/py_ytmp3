@@ -47,6 +47,11 @@ class VideoURLRequest(BaseModel):
     url: str
 
 
+class DownloadRequest(BaseModel):
+    url: str
+    format: str = "mp3"  # "mp3" or "mp4"
+
+
 class VideoInfoResponse(BaseModel):
     title: str
     author: str
@@ -173,8 +178,11 @@ async def get_playlist_info(req: VideoURLRequest):
 
 
 @app.post("/api/download", response_model=DownloadResponse)
-async def download_mp3(req: VideoURLRequest):
-    """Download audio from YouTube as MP3 using yt-dlp."""
+async def download_video(req: DownloadRequest):
+    """Download audio (MP3) or video (MP4) from YouTube using yt-dlp."""
+    fmt = req.format.lower()
+    if fmt not in ("mp3", "mp4"):
+        raise HTTPException(status_code=400, detail="Invalid format. Use 'mp3' or 'mp4'.")
     try:
         yt_dlp_path = _get_yt_dlp_path()
 
@@ -187,22 +195,32 @@ async def download_mp3(req: VideoURLRequest):
             raise Exception("Could not fetch video info")
 
         info_data = json.loads(info_result.stdout)
-        title = info_data.get("title", "audio")
+        title = info_data.get("title", "video")
         safe_title = sanitize_filename(title)
-        mp3_filename = f"{safe_title}.mp3"
+        output_filename = f"{safe_title}.{fmt}"
         output_template = str(DOWNLOADS_DIR / f"{safe_title}.%(ext)s")
 
-        # Download and convert to MP3
         ffmpeg_path = shutil.which("ffmpeg")
-        cmd = [
-            yt_dlp_path,
-            "-x",                        # extract audio
-            "--audio-format", "mp3",     # convert to mp3
-            "--audio-quality", "192K",   # 192kbps
-            "-o", output_template,
-            "--no-warnings",
-            "--no-playlist",
-        ]
+
+        if fmt == "mp3":
+            cmd = [
+                yt_dlp_path,
+                "-x",
+                "--audio-format", "mp3",
+                "--audio-quality", "192K",
+                "-o", output_template,
+                "--no-warnings",
+                "--no-playlist",
+            ]
+        else:  # mp4
+            cmd = [
+                yt_dlp_path,
+                "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
+                "--merge-output-format", "mp4",
+                "-o", output_template,
+                "--no-warnings",
+                "--no-playlist",
+            ]
 
         if ffmpeg_path:
             cmd.extend(["--ffmpeg-location", os.path.dirname(ffmpeg_path)])
@@ -214,19 +232,19 @@ async def download_mp3(req: VideoURLRequest):
         if dl_result.returncode != 0:
             raise Exception(dl_result.stderr.strip() or "yt-dlp download failed")
 
-        mp3_path = DOWNLOADS_DIR / mp3_filename
-        if not mp3_path.exists():
+        output_path = DOWNLOADS_DIR / output_filename
+        if not output_path.exists():
             # yt-dlp may have named the file slightly differently, search for it
             candidates = list(DOWNLOADS_DIR.glob(f"{safe_title}.*"))
             if candidates:
-                mp3_path = candidates[0]
-                mp3_filename = mp3_path.name
+                output_path = candidates[0]
+                output_filename = output_path.name
             else:
                 raise Exception("Downloaded file not found")
 
-        size_mb = round(mp3_path.stat().st_size / (1024 * 1024), 2)
+        size_mb = round(output_path.stat().st_size / (1024 * 1024), 2)
         return DownloadResponse(
-            filename=mp3_filename,
+            filename=output_filename,
             title=title,
             size_mb=size_mb,
         )
@@ -238,17 +256,17 @@ async def download_mp3(req: VideoURLRequest):
 
 @app.get("/api/videos", response_model=list[FileItem])
 async def list_videos():
-    """List all downloaded MP3 files."""
+    """List all downloaded MP3 and MP4 files."""
     files = []
     for f in DOWNLOADS_DIR.iterdir():
-        if f.is_file() and f.suffix == ".mp3":
+        if f.is_file() and f.suffix in (".mp3", ".mp4"):
             title = f.stem
             size_mb = round(f.stat().st_size / (1024 * 1024), 2)
             files.append(FileItem(
                 filename=f.name,
                 title=title,
                 size_mb=size_mb,
-                is_mp3=True,
+                is_mp3=f.suffix == ".mp3",
             ))
     # Sort: newest first
     files.sort(key=lambda x: (DOWNLOADS_DIR / x.filename).stat().st_mtime, reverse=True)
@@ -262,10 +280,13 @@ async def serve_file(filename: str):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
+    ext = file_path.suffix.lower()
+    media_type = "video/mp4" if ext == ".mp4" else "audio/mpeg"
+
     return FileResponse(
         path=str(file_path),
         filename=filename,
-        media_type="audio/mpeg",
+        media_type=media_type,
     )
 
 

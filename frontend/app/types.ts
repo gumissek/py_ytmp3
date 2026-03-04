@@ -11,6 +11,7 @@ export interface QueueItem {
   url: string;
   info: VideoInfo | null;
   status: "pending" | "loading-info" | "ready" | "downloading" | "done" | "error";
+  format: "mp3" | "mp4";
   error?: string;
   result?: { filename: string; size_mb: number };
 }

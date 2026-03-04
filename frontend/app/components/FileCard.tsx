@@ -33,10 +33,12 @@ export default function FileCard({ file, onDelete }: FileCardProps) {
             justifyContent: "center",
             fontSize: "1.3rem",
             flexShrink: 0,
-            background: "linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(245, 158, 11, 0.2))",
+            background: file.is_mp3
+              ? "linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(245, 158, 11, 0.2))"
+              : "linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(124, 58, 237, 0.2))",
           }}
         >
-          🎵
+          {file.is_mp3 ? "🎵" : "🎬"}
         </Box>
 
         {/* Details */}
@@ -48,7 +50,7 @@ export default function FileCard({ file, onDelete }: FileCardProps) {
             {file.title}
           </Typography>
           <Typography variant="caption" sx={{ color: "text.disabled" }}>
-            {file.size_mb} MB • MP3
+            {file.size_mb} MB • {file.is_mp3 ? "MP3" : "MP4"}
           </Typography>
         </Box>
 

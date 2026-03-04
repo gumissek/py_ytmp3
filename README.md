@@ -1,6 +1,6 @@
 # py_ytmp3
 
-A web application for downloading YouTube audio as MP3 files — supports single videos **and entire playlists**.
+A web application for downloading YouTube audio and video — supports single videos **and entire playlists** in **MP3** or **MP4** format.
 
 - **Backend** – FastAPI + yt-dlp + ffmpeg (Python 3.12)
 - **Frontend** – Next.js 16 + Material UI (Node 20)
@@ -10,10 +10,12 @@ A web application for downloading YouTube audio as MP3 files — supports single
 ## Features
 
 - Paste one or more YouTube links (one per line or comma-separated)
+- **Format selector** – choose **MP3** (audio only, 192 kbps) or **MP4** (best quality video + audio) before adding to the queue
+- Each queue item displays its target format (MP3 / MP4) with a colour-coded badge
 - **Playlist support** – paste a playlist URL and every video is automatically expanded into the queue
 - Mix single videos and playlists in the same input
-- Download individual tracks or the entire queue at once
-- MP3 at 192 kbps via ffmpeg
+- Download individual tracks/videos or the entire queue at once
+- Separate sections for downloaded MP3 and MP4 files
 - Persistent storage across container restarts (named Docker volume)
 
 ---
@@ -84,7 +86,7 @@ docker compose down
 
 ## Downloads volume
 
-MP3 files are stored in a named Docker volume `mp3_downloads`, mounted inside the backend container at `/app/downloads`.  
+MP3 and MP4 files are stored in a named Docker volume `mp3_downloads`, mounted inside the backend container at `/app/downloads`.  
 This keeps downloaded files **off the host filesystem** while making them persistent across container restarts.
 
 ```
@@ -162,7 +164,7 @@ py_ytmp3/
 ├── backend/
 │   ├── Dockerfile
 │   ├── .dockerignore
-│   ├── main.py          # FastAPI – API endpoints
+│   ├── main.py          # FastAPI – API endpoints (MP3 + MP4 download)
 │   ├── requirements.txt
 │   └── downloads/       # local temp dir / Docker volume mount
 ├── frontend/
@@ -171,9 +173,9 @@ py_ytmp3/
 │   ├── next.config.ts
 │   ├── package.json
 │   └── app/
-│       ├── types.ts     # API_BASE, TypeScript models
-│       ├── hooks/       # useQueue (incl. playlist expansion), useFiles, useStatus
-│       └── components/  # React components
+│       ├── types.ts     # API_BASE, TypeScript models (QueueItem with format field)
+│       ├── hooks/       # useQueue (format selector, playlist expansion), useFiles, useStatus
+│       └── components/  # React components (UrlInput with MP3/MP4 toggle)
 ├── docker-compose.yml
 ├── start.sh             # Quick-start: macOS / Linux
 ├── start.ps1            # Quick-start: Windows (PowerShell)
@@ -190,9 +192,9 @@ py_ytmp3/
 | `GET` | `/` | Server status |
 | `POST` | `/api/video-info` | Fetch video metadata (title, author, duration, thumbnail) |
 | `POST` | `/api/playlist-info` | Fetch all video URLs and titles from a YouTube playlist |
-| `POST` | `/api/download` | Download and convert audio to MP3 |
-| `GET` | `/api/videos` | List all downloaded MP3 files |
-| `GET` | `/api/files/{filename}` | Serve / download an MP3 file |
-| `DELETE` | `/api/delete/{filename}` | Delete an MP3 file |
+| `POST` | `/api/download` | Download and convert to MP3 or MP4 (`{ "url": "...", "format": "mp3"/"mp4" }`) |
+| `GET` | `/api/videos` | List all downloaded MP3 and MP4 files |
+| `GET` | `/api/files/{filename}` | Serve / download an MP3 or MP4 file |
+| `DELETE` | `/api/delete/{filename}` | Delete a file |
 
 Full interactive docs: <http://localhost:8000/docs>

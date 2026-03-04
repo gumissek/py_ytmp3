@@ -105,13 +105,13 @@ export default function QueueItemCard({ item, onDownload, onRemove }: QueueItemP
         {/* Actions */}
         <Box sx={{ display: "flex", gap: 1, flexShrink: 0, alignItems: "center" }}>
           <Chip
-            label="🎵 MP3"
+            label={item.format === "mp4" ? "🎬 MP4" : "🎵 MP3"}
             size="small"
             sx={{
               fontWeight: 700,
-              bgcolor: "rgba(236, 72, 153, 0.15)",
-              color: "#ec4899",
-              border: "1px solid rgba(236, 72, 153, 0.3)",
+              bgcolor: item.format === "mp4" ? "rgba(6, 182, 212, 0.15)" : "rgba(236, 72, 153, 0.15)",
+              color: item.format === "mp4" ? "#06b6d4" : "#ec4899",
+              border: `1px solid ${item.format === "mp4" ? "rgba(6, 182, 212, 0.3)" : "rgba(236, 72, 153, 0.3)"}`,
             }}
           />
 

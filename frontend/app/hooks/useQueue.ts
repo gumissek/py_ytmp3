@@ -21,6 +21,7 @@ function isPlaylistUrl(url: string): boolean {
 export function useQueue(
   showStatus: (type: "loading" | "error" | "success", text: string, duration?: number) => void,
   fetchFiles: () => Promise<void>,
+  format: "mp3" | "mp4",
 ) {
   const [url, setUrl] = useState("");
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -72,6 +73,7 @@ export function useQueue(
         id: String(nextId++),
         url: entry.url,
         info: null,
+        format,
         status: "pending" as const,
       }));
 
@@ -85,7 +87,7 @@ export function useQueue(
       const msg = e instanceof Error ? e.message : "Błąd";
       showStatus("error", `❌ Nie można pobrać playlisty: ${msg}`);
     }
-  }, [showStatus, fetchVideoInfo]);
+  }, [showStatus, fetchVideoInfo, format]);
 
   const addToQueue = useCallback(() => {
     const trimmed = url.trim();
@@ -112,6 +114,7 @@ export function useQueue(
         id: String(nextId++),
         url: u,
         info: null,
+        format,
         status: "pending" as const,
       }));
 
@@ -121,7 +124,7 @@ export function useQueue(
         fetchVideoInfo(item.id, item.url);
       }
     }
-  }, [url, fetchVideoInfo, expandPlaylist]);
+  }, [url, fetchVideoInfo, expandPlaylist, format]);
 
   const removeFromQueue = useCallback((id: string) => {
     setQueue((prev) => prev.filter((q) => q.id !== id));
@@ -135,7 +138,7 @@ export function useQueue(
       const res = await fetch(`${API_BASE}/api/download`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: item.url }),
+        body: JSON.stringify({ url: item.url, format: item.format }),
       });
       if (!res.ok) {
         const err = await res.json();
