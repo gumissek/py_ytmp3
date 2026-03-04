@@ -1,6 +1,5 @@
 import os
 import re
-import uuid
 import json
 import subprocess
 import shutil
@@ -129,9 +128,8 @@ async def download_mp3(req: VideoURLRequest):
         info_data = json.loads(info_result.stdout)
         title = info_data.get("title", "audio")
         safe_title = sanitize_filename(title)
-        uid = uuid.uuid4().hex[:6]
-        mp3_filename = f"{safe_title}_{uid}.mp3"
-        output_template = str(DOWNLOADS_DIR / f"{safe_title}_{uid}.%(ext)s")
+        mp3_filename = f"{safe_title}.mp3"
+        output_template = str(DOWNLOADS_DIR / f"{safe_title}.%(ext)s")
 
         # Download and convert to MP3
         ffmpeg_path = shutil.which("ffmpeg")
@@ -158,7 +156,7 @@ async def download_mp3(req: VideoURLRequest):
         mp3_path = DOWNLOADS_DIR / mp3_filename
         if not mp3_path.exists():
             # yt-dlp may have named the file slightly differently, search for it
-            candidates = list(DOWNLOADS_DIR.glob(f"{safe_title}_{uid}.*"))
+            candidates = list(DOWNLOADS_DIR.glob(f"{safe_title}.*"))
             if candidates:
                 mp3_path = candidates[0]
                 mp3_filename = mp3_path.name
@@ -183,7 +181,7 @@ async def list_videos():
     files = []
     for f in DOWNLOADS_DIR.iterdir():
         if f.is_file() and f.suffix == ".mp3":
-            title = re.sub(r'\s+[a-f0-9]{6}$', '', f.stem)
+            title = f.stem
             size_mb = round(f.stat().st_size / (1024 * 1024), 2)
             files.append(FileItem(
                 filename=f.name,

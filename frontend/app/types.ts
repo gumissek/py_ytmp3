@@ -22,7 +22,8 @@ export interface FileItem {
   is_mp3: boolean;
 }
 
-export const API_BASE = "http://localhost:8000";
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);

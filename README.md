@@ -1,0 +1,151 @@
+# py_ytmp3
+
+A web application for downloading YouTube audio as MP3 files.
+
+- **Backend** – FastAPI + yt-dlp + ffmpeg (Python 3.12)
+- **Frontend** – Next.js 16 + Material UI (Node 20)
+
+---
+
+## Requirements
+
+| Tool | Version |
+|------|---------|
+| Docker | 24+ |
+| Docker Compose | v2 (plugin) |
+
+---
+
+## Running with Docker Compose
+
+```bash
+# Build images and start containers
+docker compose up --build
+```
+
+Once the build is complete:
+
+| Service | URL |
+|---------|-----|
+| Frontend | <http://localhost:3000> |
+| Backend API | <http://localhost:8000> |
+| Swagger docs | <http://localhost:8000/docs> |
+
+Stop all containers:
+
+```bash
+docker compose down
+```
+
+---
+
+## Downloads volume
+
+MP3 files are stored in a named Docker volume `mp3_downloads`, mounted inside the backend container at `/app/downloads`.  
+This keeps downloaded files **off the host filesystem** while making them persistent across container restarts.
+
+```
+mp3_downloads  →  /app/downloads  (inside container)
+```
+
+List the contents of the volume:
+
+```bash
+docker run --rm -v mp3_downloads:/data alpine ls /data
+```
+
+Delete all downloaded files (remove the volume):
+
+```bash
+docker compose down -v
+```
+
+> **Warning:** `-v` removes the volume — all downloaded MP3s will be permanently deleted.
+
+---
+
+## Changing the backend URL (remote deployment)
+
+`NEXT_PUBLIC_API_URL` is baked into the frontend at **build time**. Before building for a remote server, set it to the public address of the backend:
+
+```bash
+# Example: server at 192.168.1.100
+NEXT_PUBLIC_API_URL=http://192.168.1.100:8000 docker compose up --build
+```
+
+Or edit `docker-compose.yml` directly:
+
+```yaml
+args:
+  NEXT_PUBLIC_API_URL: http://your-server:8000
+```
+
+---
+
+## Running locally (without Docker)
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# Linux / macOS:
+source .venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+> External tools required: `ffmpeg` and `yt-dlp` must be available in PATH.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+App will be available at <http://localhost:3000>.
+
+---
+
+## Project structure
+
+```
+py_ytmp3/
+├── backend/
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── main.py          # FastAPI – API endpoints
+│   ├── requirements.txt
+│   └── downloads/       # local temp dir / Docker volume mount
+├── frontend/
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── next.config.ts
+│   ├── package.json
+│   └── app/
+│       ├── types.ts     # API_BASE, TypeScript models
+│       ├── hooks/       # useQueue, useFiles, useStatus
+│       └── components/  # React components
+├── docker-compose.yml
+└── README.md
+```
+
+---
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | Server status |
+| `POST` | `/api/video-info` | Fetch video metadata (title, author, duration, thumbnail) |
+| `POST` | `/api/download` | Download and convert audio to MP3 |
+| `GET` | `/api/videos` | List all downloaded MP3 files |
+| `GET` | `/api/files/{filename}` | Serve / download an MP3 file |
+| `DELETE` | `/api/delete/{filename}` | Delete an MP3 file |
+
+Full interactive docs: <http://localhost:8000/docs>
