@@ -16,7 +16,39 @@ A web application for downloading YouTube audio as MP3 files.
 
 ---
 
-## Running with Docker Compose
+## Quick start (recommended)
+
+The start scripts handle Docker checks, build the containers, and open the browser automatically. All of them detect missing / stopped Docker and print a clear error message instead of failing silently.
+
+### macOS / Linux
+
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+### Windows – PowerShell
+
+```powershell
+.\start.ps1
+```
+
+> If you get an execution-policy error run once:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+### Windows – Command Prompt
+
+Double-click **start.bat** or run it from `cmd`:
+
+```bat
+start.bat
+```
+
+Once the build is complete the browser opens automatically at <http://localhost:3000>.
+
+---
+
+## Running with Docker Compose (manual)
 
 ```bash
 # Build images and start containers
@@ -132,6 +164,9 @@ py_ytmp3/
 │       ├── hooks/       # useQueue, useFiles, useStatus
 │       └── components/  # React components
 ├── docker-compose.yml
+├── start.sh             # Quick-start: macOS / Linux
+├── start.ps1            # Quick-start: Windows (PowerShell)
+├── start.bat            # Quick-start: Windows (Command Prompt)
 └── README.md
 ```
 
