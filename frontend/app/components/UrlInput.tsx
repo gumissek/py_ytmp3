@@ -23,7 +23,7 @@ export default function UrlInput({ url, setUrl, onAdd }: UrlInputProps) {
         id="url-input"
         multiline
         rows={2}
-        placeholder="Wklej linki do YouTube (każdy w nowej linii lub oddzielone przecinkiem)..."
+        placeholder="Wklej linki do YouTube lub playlisty (każdy w nowej linii lub oddzielone przecinkiem)..."
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         onKeyDown={handleKeyDown}

@@ -1,9 +1,20 @@
 # py_ytmp3
 
-A web application for downloading YouTube audio as MP3 files.
+A web application for downloading YouTube audio as MP3 files — supports single videos **and entire playlists**.
 
 - **Backend** – FastAPI + yt-dlp + ffmpeg (Python 3.12)
 - **Frontend** – Next.js 16 + Material UI (Node 20)
+
+---
+
+## Features
+
+- Paste one or more YouTube links (one per line or comma-separated)
+- **Playlist support** – paste a playlist URL and every video is automatically expanded into the queue
+- Mix single videos and playlists in the same input
+- Download individual tracks or the entire queue at once
+- MP3 at 192 kbps via ffmpeg
+- Persistent storage across container restarts (named Docker volume)
 
 ---
 
@@ -161,7 +172,7 @@ py_ytmp3/
 │   ├── package.json
 │   └── app/
 │       ├── types.ts     # API_BASE, TypeScript models
-│       ├── hooks/       # useQueue, useFiles, useStatus
+│       ├── hooks/       # useQueue (incl. playlist expansion), useFiles, useStatus
 │       └── components/  # React components
 ├── docker-compose.yml
 ├── start.sh             # Quick-start: macOS / Linux
@@ -178,6 +189,7 @@ py_ytmp3/
 |--------|------|-------------|
 | `GET` | `/` | Server status |
 | `POST` | `/api/video-info` | Fetch video metadata (title, author, duration, thumbnail) |
+| `POST` | `/api/playlist-info` | Fetch all video URLs and titles from a YouTube playlist |
 | `POST` | `/api/download` | Download and convert audio to MP3 |
 | `GET` | `/api/videos` | List all downloaded MP3 files |
 | `GET` | `/api/files/{filename}` | Serve / download an MP3 file |

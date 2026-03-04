@@ -5,6 +5,19 @@ import { QueueItem, API_BASE } from "../types";
 
 let nextId = 1;
 
+function isPlaylistUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // youtube.com/playlist?list=... or any URL with list= param (but not single video with list= + v=)
+    if (parsed.hostname.includes("youtube.com") && parsed.pathname === "/playlist") return true;
+    // URL has list= but no v= → it's a pure playlist link
+    if (parsed.searchParams.has("list") && !parsed.searchParams.has("v")) return true;
+  } catch {
+    // not a valid URL
+  }
+  return false;
+}
+
 export function useQueue(
   showStatus: (type: "loading" | "error" | "success", text: string, duration?: number) => void,
   fetchFiles: () => Promise<void>,
@@ -41,6 +54,39 @@ export function useQueue(
     }
   }, []);
 
+  const expandPlaylist = useCallback(async (playlistUrl: string) => {
+    showStatus("loading", "⏳ Pobieranie listy odtwarzania...", 0);
+    try {
+      const res = await fetch(`${API_BASE}/api/playlist-info`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: playlistUrl }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Failed to fetch playlist");
+      }
+      const data: { playlist_title: string; entries: { url: string; title: string }[] } = await res.json();
+
+      const newItems: QueueItem[] = data.entries.map((entry) => ({
+        id: String(nextId++),
+        url: entry.url,
+        info: null,
+        status: "pending" as const,
+      }));
+
+      setQueue((prev) => [...prev, ...newItems]);
+      showStatus("success", `✅ Dodano ${newItems.length} utworów z playlisty „${data.playlist_title}"`);
+
+      for (const item of newItems) {
+        fetchVideoInfo(item.id, item.url);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Błąd";
+      showStatus("error", `❌ Nie można pobrać playlisty: ${msg}`);
+    }
+  }, [showStatus, fetchVideoInfo]);
+
   const addToQueue = useCallback(() => {
     const trimmed = url.trim();
     if (!trimmed) return;
@@ -50,20 +96,32 @@ export function useQueue(
       .map((u) => u.trim())
       .filter((u) => u.length > 0);
 
-    const newItems: QueueItem[] = urls.map((u) => ({
-      id: String(nextId++),
-      url: u,
-      info: null,
-      status: "pending" as const,
-    }));
-
-    setQueue((prev) => [...prev, ...newItems]);
     setUrl("");
 
-    for (const item of newItems) {
-      fetchVideoInfo(item.id, item.url);
+    const playlistUrls = urls.filter(isPlaylistUrl);
+    const singleUrls = urls.filter((u) => !isPlaylistUrl(u));
+
+    // Handle playlists
+    for (const pUrl of playlistUrls) {
+      expandPlaylist(pUrl);
     }
-  }, [url, fetchVideoInfo]);
+
+    // Handle single videos
+    if (singleUrls.length > 0) {
+      const newItems: QueueItem[] = singleUrls.map((u) => ({
+        id: String(nextId++),
+        url: u,
+        info: null,
+        status: "pending" as const,
+      }));
+
+      setQueue((prev) => [...prev, ...newItems]);
+
+      for (const item of newItems) {
+        fetchVideoInfo(item.id, item.url);
+      }
+    }
+  }, [url, fetchVideoInfo, expandPlaylist]);
 
   const removeFromQueue = useCallback((id: string) => {
     setQueue((prev) => prev.filter((q) => q.id !== id));
@@ -138,3 +196,4 @@ export function useQueue(
     clearDone,
   };
 }
+

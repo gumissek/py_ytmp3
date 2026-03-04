@@ -68,6 +68,16 @@ class FileItem(BaseModel):
     is_mp3: bool
 
 
+class PlaylistEntry(BaseModel):
+    url: str
+    title: str
+
+
+class PlaylistInfoResponse(BaseModel):
+    playlist_title: str
+    entries: list[PlaylistEntry]
+
+
 # ── Endpoints ───────────────────────────────────────────
 
 @app.get("/")
@@ -109,6 +119,57 @@ async def get_video_info(req: VideoURLRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not fetch video info: {str(e)}")
+
+
+@app.post("/api/playlist-info", response_model=PlaylistInfoResponse)
+async def get_playlist_info(req: VideoURLRequest):
+    """Fetch all video URLs from a YouTube playlist using yt-dlp."""
+    try:
+        yt_dlp_path = _get_yt_dlp_path()
+        result = subprocess.run(
+            [
+                yt_dlp_path,
+                "--flat-playlist",
+                "--dump-json",
+                "--no-warnings",
+                "--yes-playlist",
+                req.url,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode != 0:
+            raise Exception(result.stderr.strip() or "yt-dlp failed to fetch playlist info")
+
+        entries: list[PlaylistEntry] = []
+        playlist_title = "Playlist"
+        for line in result.stdout.strip().splitlines():
+            if not line:
+                continue
+            data = json.loads(line)
+            # Each line is one entry in the flat playlist
+            video_id = data.get("id") or data.get("url")
+            title = data.get("title", video_id or "Unknown")
+            if not data.get("_type") or data.get("_type") == "url":
+                url = data.get("url") or data.get("webpage_url")
+                if url and not url.startswith("http"):
+                    url = f"https://www.youtube.com/watch?v={url}"
+                if url:
+                    entries.append(PlaylistEntry(url=url, title=title))
+            # The first item may carry the playlist title
+            if not playlist_title or playlist_title == "Playlist":
+                playlist_title = data.get("playlist_title") or data.get("playlist") or playlist_title
+
+        if not entries:
+            raise Exception("No videos found in playlist")
+
+        return PlaylistInfoResponse(playlist_title=playlist_title, entries=entries)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not fetch playlist info: {str(e)}")
 
 
 @app.post("/api/download", response_model=DownloadResponse)
